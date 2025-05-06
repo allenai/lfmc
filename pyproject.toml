@@ -1,0 +1,37 @@
+[project]
+name = "lfmc"
+version = "0.1.0"
+requires-python = ">=3.11"
+
+[project.scripts]
+analyze-csv = "lfmc.main.analyze_csv:main"
+augment-labels = "lfmc.main.augment_labels:main"
+create-csv = "lfmc.main.create_csv:main"
+create-h5pys = "lfmc.main.create_h5pys:main"
+evaluate-model = "lfmc.main.evaluate_model:main"
+finetune-model = "lfmc.main.finetune_model:main"
+
+[tool.mypy]
+python_version = 3.11
+exclude = '^(galileo|lib|submodules)/'
+explicit_package_bases = true
+
+[[tool.mypy.overrides]]
+module = "galileo.*"
+ignore_errors = true
+
+[[tool.mypy.overrides]]
+module = "rasterio.*"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "sklearn.*"
+ignore_missing_imports = true
+
+[tool.setuptools]
+packages = ["galileo", "lfmc"]
+
+[tool.ruff]
+exclude = ["galileo/", "submodules/"]
+line-length = 120
+lint.extend-select = ["I", "TID252"]
