@@ -1,0 +1,13 @@
+-r submodules/galileo/requirements.txt
+frozendict
+frozenlist
+numpy
+openpyxl
+pandas
+rasterio
+requests
+rtree
+scikit-learn
+torch
+torchvision
+tqdm

@@ -1,0 +1,8 @@
+-r submodules/galileo/requirements-dev.txt
+-r requirements.txt
+beaker-py
+mypy
+pandas-stubs
+pytest
+ruff
+types-tqdm
