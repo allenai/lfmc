@@ -1,3 +1,6 @@
 [submodule "submodules/galileo"]
 	path = submodules/galileo
 	url = https://github.com/nasaharvest/galileo.git
+[submodule "submodules/galileo-data"]
+	path = submodules/galileo-data
+	url = https://huggingface.co/nasaharvest/galileo.git
