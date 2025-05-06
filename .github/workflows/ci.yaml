@@ -1,0 +1,30 @@
+name: CI
+on:
+  push:
+    branches: [ main ]
+    tags:
+      - '*'
+  pull_request:
+    branches: [ main ]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        lfs: true
+        submodules: recursive
+    - uses: actions/setup-python@v4
+      with:
+        python-version: 3.11
+        cache: 'pip'
+    - name: 'install dependencies'
+      run: pip install -r requirements-dev.txt
+    - name: 'check formatting'
+      run: python -m ruff format --check
+    - name: 'lint'
+      run: python -m ruff check
+    - name: 'type check'
+      run: python -m mypy .
+    - name: 'test'
+      run: python -m pytest tests
