@@ -1,8 +1,8 @@
 -r submodules/galileo/requirements-dev.txt
 -r requirements.txt
-beaker-py
-mypy
-pandas-stubs
-pytest
-ruff
-types-tqdm
+beaker-py==1.34.1  # Newer versions conflict with the wandb package used by Galileo
+mypy>=1.8.0
+pandas-stubs>=2.2.3
+pytest>=8.3.5
+ruff>=0.2.0
+types-tqdm>=4.67.0
