@@ -23,6 +23,7 @@ def launch_experiment(
     h5pys_only: bool,
     output_hw: int,
     patch_size: int,
+    load_weights: bool,
 ) -> None:
     """Launch experiment for LFMC model finetuning on Beaker.
 
@@ -34,6 +35,7 @@ def launch_experiment(
         h5pys_only: Whether to only use H5pys, not TIFs
         output_hw: The output height and width
         patch_size: The patch size
+        load_weights: Whether to load the weights
     """
     beaker = Beaker.from_env(default_workspace=beaker_args.workspace)
     weka_path = PurePath("/weka")
@@ -49,6 +51,7 @@ def launch_experiment(
             f"--pretrained-model-name={model_name}",
             f"--output-hw={output_hw}",
             f"--patch-size={patch_size}",
+            "--load-weights" if load_weights else "--no-load-weights",
         ]
         if h5pys_only:
             arguments.append("--h5pys-only")
@@ -124,6 +127,12 @@ if __name__ == "__main__":
         help="The patch size",
         default=16,
     )
+    parser.add_argument(
+        "--load-weights",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="Whether to load the weights",
+    )
     args = parser.parse_args()
     beaker_args = get_beaker_args(args)
 
@@ -135,4 +144,5 @@ if __name__ == "__main__":
         model_name=args.model_name,
         output_hw=args.output_hw,
         patch_size=args.patch_size,
+        load_weights=args.load_weights,
     )
