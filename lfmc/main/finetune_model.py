@@ -6,9 +6,9 @@ from pathlib import Path
 
 from galileo.data.config import NORMALIZATION_DICT_FILENAME
 from galileo.data.dataset import Dataset, Normalizer
-from galileo.galileo import Encoder
 from galileo.utils import device
 from lfmc.core.copy import copy_dir
+from lfmc.core.encoder_loader import load_from_folder
 from lfmc.core.eval import finetune_and_evaluate
 
 logger = logging.getLogger(__name__)
@@ -73,6 +73,11 @@ def main():
         type=int,
         default=16,
     )
+    parser.add_argument(
+        "--load-weights",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+    )
     args = parser.parse_args()
 
     logger.info("Device: %s", device)
@@ -95,7 +100,10 @@ def main():
             # Use the original h5py folder so H5py files are saved
             h5py_folder = args.h5py_folder
 
-        pretrained_model = Encoder.load_from_folder(args.pretrained_models_folder / args.pretrained_model_name)
+        pretrained_model = load_from_folder(
+            args.pretrained_models_folder / args.pretrained_model_name,
+            load_weights=args.load_weights,
+        )
         results, df = finetune_and_evaluate(
             normalizer=load_normalizer(args.config_dir),
             pretrained_model=pretrained_model,
