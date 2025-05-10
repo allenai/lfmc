@@ -5,7 +5,7 @@ ENV LANG=C.UTF-8
 
 WORKDIR /stage
 
-COPY lib/galileo/requirements.txt lib/galileo/requirements.txt
+COPY submodules/galileo/requirements.txt submodules/galileo/requirements.txt
 COPY requirements.txt .
 
 RUN pip install --no-cache-dir --upgrade pip
@@ -13,10 +13,10 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 RUN mkdir data
 COPY data/labels data/labels
-COPY lib/galileo/config data/config
-COPY lib/galileo-data/models data/models
+COPY submodules/galileo/config data/config
+COPY submodules/galileo-data/models data/models
 
-COPY lib/galileo/src galileo
+COPY submodules/galileo/src galileo
 COPY lfmc lfmc
 
 COPY pyproject.toml .
