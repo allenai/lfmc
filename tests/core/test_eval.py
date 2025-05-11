@@ -97,6 +97,14 @@ def test_finetune_and_evaluate(
         assert isinstance(results[filter_name]["mae"], float)
         assert isinstance(results[filter_name]["rmse"], float)
 
+    assert "baseline" in results
+    assert "r2_score" in results["baseline"]
+    assert "mae" in results["baseline"]
+    assert "rmse" in results["baseline"]
+    assert isinstance(results["baseline"]["r2_score"], float)
+    assert isinstance(results["baseline"]["mae"], float)
+    assert isinstance(results["baseline"]["rmse"], float)
+
     assert 0 <= df.shape[0] <= len(list(data_folder.glob("*.tif")))
     assert "latitude" in df.columns
     assert "longitude" in df.columns

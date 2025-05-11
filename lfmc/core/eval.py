@@ -1,3 +1,4 @@
+from collections import defaultdict
 from copy import deepcopy
 from dataclasses import dataclass
 from logging import getLogger
@@ -283,6 +284,28 @@ class LFMCEval:
         all_longitudes = np.concatenate(longitudes_list) if len(longitudes_list) > 0 else np.array([])
         return all_labels, all_preds, all_latitudes, all_longitudes
 
+    def baseline(self) -> tuple[np.ndarray, np.ndarray]:
+        train_dataset = self._create_dataset(Mode.TRAIN)
+        test_dataset = self._create_dataset(Mode.TEST)
+
+        month_to_labels = defaultdict(list)
+        for i in range(len(train_dataset)):
+            output, _, label = train_dataset[i]
+            end_month = int(output.months[-1])
+            month_to_labels[end_month].append(label)
+
+        month_to_mean = {month: np.mean(labels) for month, labels in month_to_labels.items()}
+        preds, targets = [], []
+        for i in range(len(test_dataset)):
+            output, _, label = test_dataset[i]
+            end_month = int(output.months[-1])
+            if end_month not in month_to_mean:
+                continue
+            preds.append(month_to_mean[end_month])
+            targets.append(label)
+
+        return np.array(preds), np.array(targets)
+
     def compute_metrics(self, name: str, preds: np.ndarray, labels: np.ndarray) -> ResultsDict:
         if preds.size == 0 or labels.size == 0:
             return {}
@@ -335,6 +358,9 @@ def finetune_and_evaluate(
         "non_high_fire_danger": Filter(high_fire_danger=False),
     }
 
+    # "baseline" is a special key that is not a filter
+    assert "baseline" not in filters.keys()
+
     lfmc_eval = LFMCEval(
         normalizer=normalizer,
         data_folder=data_folder,
@@ -360,5 +386,9 @@ def finetune_and_evaluate(
             df["longitude"] = longitudes
             df["label"] = labels
             df["prediction"] = preds
+
+    baseline_preds, baseline_labels = lfmc_eval.baseline()
+    baseline_results = lfmc_eval.compute_metrics("baseline", baseline_preds, baseline_labels)
+    all_results.update(baseline_results)
 
     return all_results, df
