@@ -1,3 +1,4 @@
+import logging
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -23,7 +24,7 @@ from lfmc.core.filter import Filter, apply_filter
 from lfmc.core.labels import read_labels
 from lfmc.core.mode import Mode
 from lfmc.core.padding import pad_dates
-from lfmc.core.splits import assign_folds, assign_splits, num_folds
+from lfmc.core.splits import assign_random_folds, assign_splits_from_folds, assign_splits_from_values, num_folds
 
 
 @dataclass(frozen=True)
@@ -52,6 +53,8 @@ class LFMCDataset(Dataset):
         mode: Mode | None = None,
         validation_folds: frozenset[int] | None = None,
         test_folds: frozenset[int] | None = None,
+        validation_state_regions: frozenset[str] | None = None,
+        test_state_regions: frozenset[str] | None = None,
         filter: Filter | None = None,
     ):
         super().__init__(
@@ -62,6 +65,23 @@ class LFMCDataset(Dataset):
             output_hw,
             output_timesteps,
         )
+
+        logging.info(
+            "Initializing LFMCDataset:\n"
+            f"output_hw: {output_hw}\n"
+            f"output_timesteps: {output_timesteps}\n"
+            f"space_time_bands: {space_time_bands}\n"
+            f"space_bands: {space_bands}\n"
+            f"time_bands: {time_bands}\n"
+            f"static_bands: {static_bands}\n"
+            f"mode: {mode}\n"
+            f"validation_folds: {validation_folds}\n"
+            f"test_folds: {test_folds}\n"
+            f"validation_state_regions: {validation_state_regions}\n"
+            f"test_state_regions: {test_state_regions}\n"
+            f"filter: {filter}\n"
+        )
+
         self.normalizer = normalizer
         self.masks = self.make_masks(
             output_hw,
@@ -82,12 +102,20 @@ class LFMCDataset(Dataset):
 
         data = apply_filter(read_labels(LABELS_PATH), filter)
         if mode is not None:
-            if validation_folds is None:
-                raise ValueError("validation_folds must be provided if mode is provided")
-            if test_folds is None:
-                raise ValueError("test_folds must be provided if mode is provided")
-            data = assign_folds(data, Column.SORTING_ID, num_folds=num_folds())
-            data = assign_splits(data, validation_folds, test_folds)
+            if validation_state_regions is None or test_state_regions is None:
+                if validation_folds is None:
+                    raise ValueError("validation_folds must be provided")
+                if test_folds is None:
+                    raise ValueError("test_folds must be provided")
+                data = assign_random_folds(data, Column.SORTING_ID, num_folds=num_folds())
+                data = assign_splits_from_folds(data, validation_folds, test_folds)
+            else:
+                data = assign_splits_from_values(
+                    data,
+                    Column.STATE_REGION,
+                    validation_state_regions,
+                    test_state_regions,
+                )
             data = data[data["mode"] == mode]
 
         suffix = FileSuffix.H5 if h5pys_only else FileSuffix.TIF

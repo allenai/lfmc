@@ -8,6 +8,7 @@ import numpy as np
 import pandas as pd
 import torch
 import torch.nn as nn
+from frozenlist import FrozenList
 from sklearn.metrics import mean_absolute_error, r2_score, root_mean_squared_error
 from torch.utils.data import DataLoader
 from tqdm import tqdm
@@ -15,13 +16,13 @@ from tqdm import tqdm
 from galileo.data.dataset import Normalizer
 from galileo.galileo import Encoder
 from galileo.utils import device
+from lfmc.core.bands import SPACE_BANDS, SPACE_TIME_BANDS, STATIC_BANDS, TIME_BANDS
 from lfmc.core.const import MAX_LFMC_VALUE, MeteorologicalSeason, WorldCoverClass
 from lfmc.core.dataset import LFMCDataset
 from lfmc.core.filter import Filter
 from lfmc.core.finetuning import DEFAULT_FINETUNING_CONFIG, FinetuningConfig, FineTuningModel
 from lfmc.core.hyperparameters import DEFAULT_HYPERPARAMETERS, HyperParameters
 from lfmc.core.mode import Mode
-from lfmc.core.splits import DEFAULT_TEST_FOLDS, DEFAULT_VALIDATION_FOLDS
 
 logger = getLogger(__name__)
 
@@ -48,7 +49,18 @@ class LFMCEval:
         patch_size: int = 16,
         validation_folds: frozenset[int] | None = None,
         test_folds: frozenset[int] | None = None,
+        validation_state_regions: frozenset[str] | None = None,
+        test_state_regions: frozenset[str] | None = None,
+        excluded_bands: frozenset[str] = frozenset(),
     ):
+        if validation_folds is None and validation_state_regions is None:
+            raise ValueError("validation_folds or validation_state_regions must be provided")
+        if validation_folds is not None and validation_state_regions is not None:
+            raise ValueError("validation_folds and validation_state_regions cannot both be provided")
+        if test_folds is None and test_state_regions is None:
+            raise ValueError("test_folds or test_state_regions must be provided")
+        if test_folds is not None and test_state_regions is not None:
+            raise ValueError("test_folds and test_state_regions cannot both be provided")
         self.normalizer = normalizer
         self.data_folder = data_folder
         self.h5py_folder = h5py_folder
@@ -58,6 +70,12 @@ class LFMCEval:
         self.patch_size = patch_size
         self.validation_folds = validation_folds
         self.test_folds = test_folds
+        self.validation_state_regions = validation_state_regions
+        self.test_state_regions = test_state_regions
+        self.space_time_bands = FrozenList(SPACE_TIME_BANDS - excluded_bands)
+        self.space_bands = FrozenList(SPACE_BANDS - excluded_bands)
+        self.time_bands = FrozenList(TIME_BANDS - excluded_bands)
+        self.static_bands = FrozenList(STATIC_BANDS - excluded_bands)
 
     @classmethod
     def _new_finetuning_model(cls, model: Encoder) -> FineTuningModel:
@@ -119,7 +137,13 @@ class LFMCEval:
             mode=mode,
             validation_folds=self.validation_folds,
             test_folds=self.test_folds,
+            validation_state_regions=self.validation_state_regions,
+            test_state_regions=self.test_state_regions,
             filter=filter,
+            space_time_bands=self.space_time_bands,
+            space_bands=self.space_bands,
+            time_bands=self.time_bands,
+            static_bands=self.static_bands,
         )
 
     def finetune(
@@ -332,10 +356,27 @@ def finetune_and_evaluate(
     patch_size: int = 16,
     hyperparams: HyperParameters = DEFAULT_HYPERPARAMETERS,
     finetuning_config: FinetuningConfig = DEFAULT_FINETUNING_CONFIG,
-    # The default number of splits is 100, so use a 70-15-15 train-validation-test split
-    validation_folds: frozenset[int] = DEFAULT_VALIDATION_FOLDS,
-    test_folds: frozenset[int] = DEFAULT_TEST_FOLDS,
+    validation_folds: frozenset[int] | None = None,
+    test_folds: frozenset[int] | None = None,
+    validation_state_regions: frozenset[str] | None = None,
+    test_state_regions: frozenset[str] | None = None,
+    excluded_bands: frozenset[str] = frozenset(),
 ) -> tuple[ResultsDict, pd.DataFrame]:
+    logger.info("Data folder: %s", data_folder)
+    logger.info("H5py folder: %s", h5py_folder)
+    logger.info("Output folder: %s", output_folder)
+    logger.info("H5pys only: %s", h5pys_only)
+    logger.info("Output HW: %s", output_hw)
+    logger.info("Output timesteps: %s", output_timesteps)
+    logger.info("Patch size: %s", patch_size)
+    logger.info("Hyperparams: %s", hyperparams)
+    logger.info("Finetuning config: %s", finetuning_config)
+    logger.info("Validation folds: %s", validation_folds)
+    logger.info("Test folds: %s", test_folds)
+    logger.info("Validation state regions: %s", validation_state_regions)
+    logger.info("Test state regions: %s", test_state_regions)
+    logger.info("Excluded bands: %s", excluded_bands)
+
     filters = {
         "all": None,
         MeteorologicalSeason.WINTER: Filter(seasons={MeteorologicalSeason.WINTER}),
@@ -371,6 +412,9 @@ def finetune_and_evaluate(
         patch_size=patch_size,
         validation_folds=validation_folds,
         test_folds=test_folds,
+        validation_state_regions=validation_state_regions,
+        test_state_regions=test_state_regions,
+        excluded_bands=excluded_bands,
     )
 
     finetuned_model = lfmc_eval.finetune(pretrained_model, output_folder, hyperparams, finetuning_config)
