@@ -1,3 +1,5 @@
+from itertools import combinations
+
 from galileo.data.dataset import (
     SPACE_BAND_GROUPS_IDX,
     SPACE_TIME_BANDS_GROUPS_IDX,
@@ -15,3 +17,9 @@ def test_bands_are_subsets():
     assert_subset(SPACE_BANDS, frozenset(SPACE_BAND_GROUPS_IDX.keys()))
     assert_subset(TIME_BANDS, frozenset(TIME_BAND_GROUPS_IDX.keys()))
     assert_subset(STATIC_BANDS, frozenset(STATIC_BAND_GROUPS_IDX.keys()))
+
+
+def test_bands_are_disjoint():
+    band_sets = [SPACE_TIME_BANDS, SPACE_BANDS, TIME_BANDS, STATIC_BANDS]
+    for b1, b2 in combinations(band_sets, 2):
+        assert b1.isdisjoint(b2), f"{b1} and {b2} are not disjoint"

@@ -10,6 +10,7 @@ from galileo.utils import device
 from lfmc.core.copy import copy_dir
 from lfmc.core.encoder_loader import load_from_folder
 from lfmc.core.eval import finetune_and_evaluate
+from lfmc.core.splits import DEFAULT_TEST_FOLDS, DEFAULT_VALIDATION_FOLDS
 
 logger = logging.getLogger(__name__)
 
@@ -69,6 +70,11 @@ def main():
         default=32,
     )
     parser.add_argument(
+        "--output-timesteps",
+        type=int,
+        default=12,
+    )
+    parser.add_argument(
         "--patch-size",
         type=int,
         default=16,
@@ -77,6 +83,21 @@ def main():
         "--load-weights",
         action=argparse.BooleanOptionalAction,
         default=True,
+    )
+    parser.add_argument(
+        "--excluded-bands",
+        type=str,
+        help="The bands to exclude, separated by commas",
+    )
+    parser.add_argument(
+        "--validation-state-regions",
+        type=str,
+        help="The state regions to use for validation, separated by commas",
+    )
+    parser.add_argument(
+        "--test-state-regions",
+        type=str,
+        help="The state regions to use for testing, separated by commas",
     )
     args = parser.parse_args()
 
@@ -104,6 +125,9 @@ def main():
             args.pretrained_models_folder / args.pretrained_model_name,
             load_weights=args.load_weights,
         )
+        excluded_bands = (
+            frozenset([x.strip() for x in args.excluded_bands.split(",")]) if args.excluded_bands else frozenset()
+        )
         results, df = finetune_and_evaluate(
             normalizer=load_normalizer(args.config_dir),
             pretrained_model=pretrained_model,
@@ -111,10 +135,19 @@ def main():
             h5py_folder=h5py_folder,
             output_folder=args.output_folder,
             h5pys_only=args.h5pys_only,
-            patch_size=args.patch_size,
             output_hw=args.output_hw,
+            output_timesteps=args.output_timesteps,
+            patch_size=args.patch_size,
+            validation_folds=DEFAULT_VALIDATION_FOLDS if not args.validation_state_regions else None,
+            test_folds=DEFAULT_TEST_FOLDS if not args.test_state_regions else None,
+            validation_state_regions=args.validation_state_regions.split(",")
+            if args.validation_state_regions
+            else None,
+            test_state_regions=args.test_state_regions.split(",") if args.test_state_regions else None,
+            excluded_bands=excluded_bands,
         )
 
+        logger.info("Results:\n%s", json.dumps(results, indent=4))
         with open(args.output_folder / "results.json", "w") as f:
             json.dump(results, f)
         df.to_csv(args.output_folder / "results.csv", index=False)

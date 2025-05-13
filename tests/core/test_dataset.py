@@ -1,9 +1,18 @@
 from pathlib import Path
 from typing import Any, Sequence
 
+import numpy as np
 import pytest
+from frozenlist import FrozenList
 
-from galileo.data.dataset import Normalizer
+from galileo.data.dataset import (
+    SPACE_BAND_GROUPS_IDX,
+    SPACE_TIME_BANDS_GROUPS_IDX,
+    STATIC_BAND_GROUPS_IDX,
+    TIME_BAND_GROUPS_IDX,
+    Normalizer,
+)
+from lfmc.core.bands import SPACE_BANDS, SPACE_TIME_BANDS, STATIC_BANDS, TIME_BANDS
 from lfmc.core.const import MeteorologicalSeason, WorldCoverClass
 from lfmc.core.dataset import LFMCDataset
 from lfmc.core.filter import Filter
@@ -83,6 +92,35 @@ def test_dataset_splits_are_different(data_folder: Path, h5py_folder: Path, norm
     assert_sets_unique(list(training_samples_by_split_id.values()))
     assert_sets_unique(list(validation_samples_by_split_id.values()))
     assert_sets_unique(list(test_samples_by_split_id.values()))
+
+
+def test_dataset_train_validation_test_splits_by_state_region(
+    data_folder: Path, h5py_folder: Path, normalizer: Normalizer
+):
+    def create_dataset(mode: Mode, validation_state_regions: frozenset[str], test_state_regions: frozenset[str]):
+        return LFMCDataset(
+            normalizer=normalizer,
+            data_folder=data_folder,
+            h5py_folder=h5py_folder,
+            h5pys_only=False,
+            mode=mode,
+            validation_state_regions=validation_state_regions,
+            test_state_regions=test_state_regions,
+        )
+
+    validation_state_regions = frozenset(["Idaho", "Nevada"])
+    test_state_regions = frozenset(["Colorado"])
+    train_dataset = create_dataset(Mode.TRAIN, validation_state_regions, test_state_regions)
+    validation_dataset = create_dataset(Mode.VALIDATION, validation_state_regions, test_state_regions)
+    test_dataset = create_dataset(Mode.TEST, validation_state_regions, test_state_regions)
+
+    training_samples = {train_dataset[i][1] for i in range(len(train_dataset))}
+    validation_samples = {validation_dataset[i][1] for i in range(len(validation_dataset))}
+    test_samples = {test_dataset[i][1] for i in range(len(test_dataset))}
+    assert_sets_unique([training_samples, validation_samples, test_samples])
+    assert len(training_samples) == 5
+    assert len(validation_samples) == 2
+    assert len(test_samples) == 3
 
 
 @pytest.mark.parametrize(
@@ -196,3 +234,19 @@ def test_dataset_filter_high_fire_danger(
         filter=Filter(high_fire_danger=high_fire_danger),
     )
     assert len(dataset) == expected_len
+
+
+def test_dataset_excluded_bands(data_folder: Path, h5py_folder: Path, normalizer: Normalizer):
+    dataset = LFMCDataset(
+        normalizer=normalizer,
+        data_folder=data_folder,
+        h5py_folder=h5py_folder,
+        h5pys_only=False,
+        space_time_bands=FrozenList(SPACE_TIME_BANDS - frozenset(SPACE_TIME_BANDS_GROUPS_IDX.keys())),
+        space_bands=FrozenList(SPACE_BANDS - frozenset(SPACE_BAND_GROUPS_IDX.keys())),
+        time_bands=FrozenList(TIME_BANDS - frozenset(TIME_BAND_GROUPS_IDX.keys())),
+        static_bands=FrozenList(STATIC_BANDS - frozenset(STATIC_BAND_GROUPS_IDX.keys())),
+    )
+    assert len(dataset.masks) == 4
+    for mask in dataset.masks:
+        assert np.all(mask == 1)

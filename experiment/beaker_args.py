@@ -1,25 +1,37 @@
 import argparse
+import os
 from dataclasses import dataclass
 
 from beaker import Priority
+from dotenv import load_dotenv
+
+load_dotenv()
+
+
+def get_clusters() -> list[str] | None:
+    beaker_clusters = os.getenv("BEAKER_CLUSTERS")
+    if beaker_clusters:
+        return beaker_clusters.split(" ")
+    return None
 
 
 def add_common_beaker_args(parser: argparse.ArgumentParser):
     parser.add_argument(
         "--budget",
         type=str,
-        required=True,
+        default=os.getenv("BEAKER_BUDGET"),
         help="The budget to use for the experiment",
     )
     parser.add_argument(
         "--workspace",
         type=str,
+        default=os.getenv("BEAKER_WORKSPACE"),
         help="Which workspace to run the experiment in",
     )
     parser.add_argument(
         "--weka-bucket",
         type=str,
-        required=True,
+        default=os.getenv("WEKA_BUCKET"),
         help="The WEKA bucket to use for the experiment",
     )
     parser.add_argument(
@@ -32,6 +44,7 @@ def add_common_beaker_args(parser: argparse.ArgumentParser):
         "--clusters",
         type=str,
         nargs="+",
+        default=get_clusters(),
         help="The clusters where the experiment can be run",
     )
     parser.add_argument(
