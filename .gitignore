@@ -174,4 +174,5 @@ cython_debug/
 .pypirc
 
 # Miscellaneous
+.DS_Store
 data/external/*.xlsx
