@@ -1,0 +1,7 @@
+This code base includes the following dependencies that are installed as Python packages and licensed under Mozilla Public License 2.0 available at https://www.mozilla.org/en-US/MPL/2.0/:
+certifi - the source code is located at https://github.com/certifi/python-certifi
+fqdn - the source code is located at https://github.com/ypcrts/fqdn
+tqdm - the source code is located at located at https://tqdm.github.io
+
+This code base includes the following dependency that is dynamically imported and licensed under the GNU Lesser General Public License (LGPL 3.0) available at https://www.gnu.org/licenses/lgpl-3.0.en.html#license-text:
+frozendict - the source code is located at https://github.com/Marco-Sulla/python-frozendict
