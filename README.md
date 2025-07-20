@@ -4,6 +4,8 @@ Wildfires are growing in intensity and severity, increasing the need for timely,
 
 ![A pipeline to produce LFMC map for a given spatiotemporal window](docs/images/pipeline.png)
 
+For more information, please see our [paper](https://arxiv.org/abs/2506.20132).
+
 ## Documentation
 
 * [Setup](docs/setup.md)
