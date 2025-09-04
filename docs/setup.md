@@ -9,8 +9,8 @@ docker build --platform linux/amd64 -t lfmc .
 Upload to Beaker:
 
 ```shell
-if ! beaker image get $USER/lfmc 2> /dev/null; then
-    beaker image delete $USER/lfmc;
+if beaker image get "$USER/lfmc" > /dev/null 2>&1; then
+    beaker image delete "$USER/lfmc"
 fi
-beaker image create --workspace $BEAKER_WORKSPACE --name lfmc lfmc
+beaker image create --workspace "$BEAKER_WORKSPACE" --name lfmc lfmc
 ```
