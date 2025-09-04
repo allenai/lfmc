@@ -12,5 +12,5 @@ Upload to Beaker:
 if ! beaker image get $USER/lfmc 2> /dev/null; then
     beaker image delete $USER/lfmc;
 fi
-beaker image create --workspace $WORKSPACE --name lfmc lfmc
+beaker image create --workspace $BEAKER_WORKSPACE --name lfmc lfmc
 ```
