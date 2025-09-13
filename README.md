@@ -6,6 +6,10 @@ Wildfires are growing in intensity and severity, increasing the need for timely,
 
 For more information, please see our [paper](https://arxiv.org/abs/2506.20132).
 
+## Workshop
+
+The paper was accepted at the [TerraBytes ICML 2025 workshop](https://terrabytes-workshop.github.io/) with PMLR proceedings.
+
 ## Documentation
 
 * [Setup](docs/setup.md)
