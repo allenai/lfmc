@@ -4,6 +4,7 @@ version = "0.1.0"
 requires-python = ">=3.11"
 
 [project.scripts]
+add-splits-to-csv = "lfmc.main.add_splits_to_csv:main"
 analyze-csv = "lfmc.main.analyze_csv:main"
 augment-labels = "lfmc.main.augment_labels:main"
 create-csv = "lfmc.main.create_csv:main"
