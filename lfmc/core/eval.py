@@ -23,6 +23,7 @@ from lfmc.core.filter import Filter
 from lfmc.core.finetuning import DEFAULT_FINETUNING_CONFIG, FinetuningConfig, FineTuningModel
 from lfmc.core.hyperparameters import DEFAULT_HYPERPARAMETERS, HyperParameters
 from lfmc.core.mode import Mode
+from lfmc.core.splits import SplitType
 
 logger = getLogger(__name__)
 
@@ -47,6 +48,7 @@ class LFMCEval:
         output_hw: int = 32,
         output_timesteps: int = 12,
         patch_size: int = 16,
+        split_type: SplitType = SplitType.RANDOM,
         validation_folds: frozenset[int] | None = None,
         test_folds: frozenset[int] | None = None,
         validation_state_regions: frozenset[str] | None = None,
@@ -68,6 +70,7 @@ class LFMCEval:
         self.output_hw = output_hw
         self.output_timesteps = output_timesteps
         self.patch_size = patch_size
+        self.split_type = split_type
         self.validation_folds = validation_folds
         self.test_folds = test_folds
         self.validation_state_regions = validation_state_regions
@@ -100,7 +103,9 @@ class LFMCEval:
             "best_loss": state.best_loss,
             "epochs_since_improvement": state.epochs_since_improvement,
         }
-        torch.save(checkpoint_dict, checkpoint_folder / "checkpoint.pth")
+        tmp_path = checkpoint_folder / "checkpoint.pth.tmp"
+        torch.save(checkpoint_dict, tmp_path)
+        tmp_path.replace(checkpoint_folder / "checkpoint.pth")
 
     def _load_checkpoint(
         self,
@@ -135,6 +140,7 @@ class LFMCEval:
             output_hw=self.output_hw,
             output_timesteps=self.output_timesteps,
             mode=mode,
+            split_type=self.split_type,
             validation_folds=self.validation_folds,
             test_folds=self.test_folds,
             validation_state_regions=self.validation_state_regions,
@@ -193,7 +199,7 @@ class LFMCEval:
         # Load checkpoint if it exists
         finetuning_model, optimizer, state = self._load_checkpoint(output_folder, finetuning_model, optimizer, state)
 
-        for epoch in (pbar := tqdm(range(finetuning_config.max_epochs), desc="Finetuning")):
+        for epoch in (pbar := tqdm(range(state.epoch, finetuning_config.max_epochs), desc="Finetuning")):
             finetuning_model.train()
             epoch_train_loss = 0.0
 
@@ -249,11 +255,13 @@ class LFMCEval:
                 state.epochs_since_improvement = 0
             else:
                 state.epochs_since_improvement += 1
-                if state.epochs_since_improvement >= finetuning_config.patience:
-                    logger.info(f"Early stopping at epoch {epoch} with validation loss {validation_loss:.4f}")
-                    break
 
+            state.epoch = epoch
             self._save_checkpoint(output_folder, finetuning_model, optimizer, state)
+
+            if state.epochs_since_improvement >= finetuning_config.patience:
+                logger.info(f"Early stopping at epoch {epoch} with validation loss {validation_loss:.4f}")
+                break
 
         if state.best_model_dict is None:
             raise ValueError("No best model found")
@@ -356,6 +364,7 @@ def finetune_and_evaluate(
     patch_size: int = 16,
     hyperparams: HyperParameters = DEFAULT_HYPERPARAMETERS,
     finetuning_config: FinetuningConfig = DEFAULT_FINETUNING_CONFIG,
+    split_type: SplitType = SplitType.RANDOM,
     validation_folds: frozenset[int] | None = None,
     test_folds: frozenset[int] | None = None,
     validation_state_regions: frozenset[str] | None = None,
@@ -371,6 +380,7 @@ def finetune_and_evaluate(
     logger.info("Patch size: %s", patch_size)
     logger.info("Hyperparams: %s", hyperparams)
     logger.info("Finetuning config: %s", finetuning_config)
+    logger.info("Split type: %s", split_type)
     logger.info("Validation folds: %s", validation_folds)
     logger.info("Test folds: %s", test_folds)
     logger.info("Validation state regions: %s", validation_state_regions)
@@ -410,6 +420,7 @@ def finetune_and_evaluate(
         output_hw=output_hw,
         output_timesteps=output_timesteps,
         patch_size=patch_size,
+        split_type=split_type,
         validation_folds=validation_folds,
         test_folds=test_folds,
         validation_state_regions=validation_state_regions,

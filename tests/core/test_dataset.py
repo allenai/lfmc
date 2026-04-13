@@ -17,7 +17,7 @@ from lfmc.core.const import MeteorologicalSeason, WorldCoverClass
 from lfmc.core.dataset import LFMCDataset
 from lfmc.core.filter import Filter
 from lfmc.core.mode import Mode
-from lfmc.core.splits import num_folds
+from lfmc.core.splits import SplitType, num_folds
 
 
 def assert_sets_unique(sets: Sequence[set[Any]]):
@@ -42,6 +42,31 @@ def test_dataset_train_validation_test_splits(data_folder: Path, h5py_folder: Pa
             h5py_folder=h5py_folder,
             h5pys_only=False,
             mode=mode,
+            validation_folds=validation_folds,
+            test_folds=test_folds,
+        )
+
+    validation_folds = frozenset([0])
+    test_folds = frozenset([1])
+    train_dataset = create_dataset(Mode.TRAIN, validation_folds, test_folds)
+    validation_dataset = create_dataset(Mode.VALIDATION, validation_folds, test_folds)
+    test_dataset = create_dataset(Mode.TEST, validation_folds, test_folds)
+
+    training_samples = {train_dataset[i][1] for i in range(len(train_dataset))}
+    validation_samples = {validation_dataset[i][1] for i in range(len(validation_dataset))}
+    test_samples = {test_dataset[i][1] for i in range(len(test_dataset))}
+    assert_sets_unique([training_samples, validation_samples, test_samples])
+
+
+def test_dataset_train_validation_test_spatial_splits(data_folder: Path, h5py_folder: Path, normalizer: Normalizer):
+    def create_dataset(mode: Mode, validation_folds: frozenset[int], test_folds: frozenset[int]):
+        return LFMCDataset(
+            normalizer=normalizer,
+            data_folder=data_folder,
+            h5py_folder=h5py_folder,
+            h5pys_only=False,
+            mode=mode,
+            split_type=SplitType.SPATIAL,
             validation_folds=validation_folds,
             test_folds=test_folds,
         )

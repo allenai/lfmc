@@ -1,10 +1,26 @@
 import hashlib
 import os
 import random
+from enum import StrEnum
 
 import pandas as pd
+from frozendict import frozendict
 
+from lfmc.core.const import Column
 from lfmc.core.mode import Mode
+
+
+class SplitType(StrEnum):
+    RANDOM = "random"
+    SPATIAL = "spatial"
+
+
+SPLIT_TYPE_COLUMN: frozendict[SplitType, Column] = frozendict(
+    {
+        SplitType.RANDOM: Column.SORTING_ID,
+        SplitType.SPATIAL: Column.SITE_NAME,
+    }
+)
 
 DEFAULT_NUM_FOLDS = 100
 

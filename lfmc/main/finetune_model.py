@@ -10,7 +10,7 @@ from galileo.utils import device
 from lfmc.core.copy import copy_dir
 from lfmc.core.encoder_loader import load_from_folder
 from lfmc.core.eval import finetune_and_evaluate
-from lfmc.core.splits import DEFAULT_TEST_FOLDS, DEFAULT_VALIDATION_FOLDS
+from lfmc.core.splits import DEFAULT_TEST_FOLDS, DEFAULT_VALIDATION_FOLDS, SplitType
 
 logger = logging.getLogger(__name__)
 
@@ -90,6 +90,12 @@ def main():
         help="The bands to exclude, separated by commas",
     )
     parser.add_argument(
+        "--split-type",
+        choices=[s.value for s in SplitType],
+        default=SplitType.RANDOM.value,
+        help="Split strategy: 'random' splits by sorting_id, 'spatial' splits by site_name",
+    )
+    parser.add_argument(
         "--validation-state-regions",
         type=str,
         help="The state regions to use for validation, separated by commas",
@@ -138,6 +144,7 @@ def main():
             output_hw=args.output_hw,
             output_timesteps=args.output_timesteps,
             patch_size=args.patch_size,
+            split_type=SplitType(args.split_type),
             validation_folds=DEFAULT_VALIDATION_FOLDS if not args.validation_state_regions else None,
             test_folds=DEFAULT_TEST_FOLDS if not args.test_state_regions else None,
             validation_state_regions=args.validation_state_regions.split(",")
@@ -151,6 +158,17 @@ def main():
         with open(args.output_folder / "results.json", "w") as f:
             json.dump(results, f)
         df.to_csv(args.output_folder / "results.csv", index=False)
+
+        experiment_config = {
+            "split_type": args.split_type,
+            "load_weights": args.load_weights,
+            "excluded_bands": args.excluded_bands or "",
+            "output_hw": args.output_hw,
+            "output_timesteps": args.output_timesteps,
+            "patch_size": args.patch_size,
+        }
+        with open(args.output_folder / "experiment_config.json", "w") as f:
+            json.dump(experiment_config, f)
 
 
 if __name__ == "__main__":

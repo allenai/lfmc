@@ -24,7 +24,14 @@ from lfmc.core.filter import Filter, apply_filter
 from lfmc.core.labels import read_labels
 from lfmc.core.mode import Mode
 from lfmc.core.padding import pad_dates
-from lfmc.core.splits import assign_random_folds, assign_splits_from_folds, assign_splits_from_values, num_folds
+from lfmc.core.splits import (
+    SPLIT_TYPE_COLUMN,
+    SplitType,
+    assign_random_folds,
+    assign_splits_from_folds,
+    assign_splits_from_values,
+    num_folds,
+)
 
 
 @dataclass(frozen=True)
@@ -51,6 +58,7 @@ class LFMCDataset(Dataset):
         time_bands: FrozenList[str] = FrozenList(TIME_BANDS),
         static_bands: FrozenList[str] = FrozenList(STATIC_BANDS),
         mode: Mode | None = None,
+        split_type: SplitType = SplitType.RANDOM,
         validation_folds: frozenset[int] | None = None,
         test_folds: frozenset[int] | None = None,
         validation_state_regions: frozenset[str] | None = None,
@@ -75,6 +83,7 @@ class LFMCDataset(Dataset):
             f"time_bands: {time_bands}\n"
             f"static_bands: {static_bands}\n"
             f"mode: {mode}\n"
+            f"split_type: {split_type}\n"
             f"validation_folds: {validation_folds}\n"
             f"test_folds: {test_folds}\n"
             f"validation_state_regions: {validation_state_regions}\n"
@@ -107,7 +116,7 @@ class LFMCDataset(Dataset):
                     raise ValueError("validation_folds must be provided")
                 if test_folds is None:
                     raise ValueError("test_folds must be provided")
-                data = assign_random_folds(data, Column.SORTING_ID, num_folds=num_folds())
+                data = assign_random_folds(data, SPLIT_TYPE_COLUMN[split_type], num_folds=num_folds())
                 data = assign_splits_from_folds(data, validation_folds, test_folds)
             else:
                 data = assign_splits_from_values(

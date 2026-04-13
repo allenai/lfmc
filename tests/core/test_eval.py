@@ -2,6 +2,7 @@ from pathlib import Path
 
 import pandas as pd
 import pytest
+import torch
 from frozenlist import FrozenList
 
 from galileo.data.dataset import (
@@ -15,6 +16,7 @@ from galileo.galileo import Encoder
 from lfmc.core.bands import SPACE_BANDS, SPACE_TIME_BANDS, STATIC_BANDS, TIME_BANDS
 from lfmc.core.const import MeteorologicalSeason, WorldCoverClass
 from lfmc.core.eval import FinetuningConfig, LFMCEval, finetune_and_evaluate
+from lfmc.core.splits import SplitType
 
 
 def test_finetune_and_test(
@@ -121,6 +123,40 @@ def test_finetune_and_evaluate(
     assert "prediction" in df.columns
 
 
+def test_finetune_and_evaluate_spatial_split(
+    tmp_path: Path,
+    normalizer: Normalizer,
+    encoder: Encoder,
+    data_folder: Path,
+    h5py_folder: Path,
+):
+    output_folder = tmp_path / "results"
+    output_folder.mkdir(parents=True, exist_ok=True)
+    results, df = finetune_and_evaluate(
+        normalizer=normalizer,
+        pretrained_model=encoder,
+        data_folder=data_folder,
+        h5py_folder=h5py_folder,
+        output_folder=output_folder,
+        split_type=SplitType.SPATIAL,
+        validation_folds=frozenset([0]),
+        test_folds=frozenset([1]),
+    )
+    assert results is not None
+    assert isinstance(results, dict)
+    assert df is not None
+    assert isinstance(df, pd.DataFrame)
+    assert "all" in results
+    assert "r2_score" in results["all"]
+    assert "baseline" in results
+
+    assert 0 <= df.shape[0] <= len(list(data_folder.glob("*.tif")))
+    assert "latitude" in df.columns
+    assert "longitude" in df.columns
+    assert "label" in df.columns
+    assert "prediction" in df.columns
+
+
 def test_finetune_and_evaluate_state_regions(
     tmp_path: Path,
     normalizer: Normalizer,
@@ -177,6 +213,83 @@ def test_finetune_and_evaluate_state_regions(
     assert "longitude" in df.columns
     assert "label" in df.columns
     assert "prediction" in df.columns
+
+
+def test_checkpoint_saves_correct_epoch(
+    tmp_path: Path,
+    normalizer: Normalizer,
+    encoder: Encoder,
+    data_folder: Path,
+    h5py_folder: Path,
+):
+    output_folder = tmp_path / "finetuned"
+    output_folder.mkdir(parents=True, exist_ok=True)
+    lfmc_eval = LFMCEval(
+        normalizer=normalizer,
+        data_folder=data_folder,
+        h5py_folder=h5py_folder,
+        h5pys_only=False,
+        validation_folds=frozenset([0]),
+        test_folds=frozenset([1]),
+    )
+    finetuning_config = FinetuningConfig(
+        max_epochs=3,
+        weight_decay=0.001,
+        learning_rate=0.001,
+        batch_size=16,
+        patience=100,
+    )
+    lfmc_eval.finetune(
+        pretrained_model=encoder,
+        output_folder=output_folder,
+        finetuning_config=finetuning_config,
+    )
+
+    checkpoint_path = output_folder / "checkpoint.pth"
+    assert checkpoint_path.exists()
+    assert not (output_folder / "checkpoint.pth.tmp").exists()
+
+    checkpoint = torch.load(checkpoint_path)
+    assert checkpoint["epoch"] == 3
+    assert checkpoint["best_model_dict"] is not None
+    assert checkpoint["best_loss"] is not None
+    assert checkpoint["epochs_since_improvement"] >= 0
+
+
+def test_checkpoint_resume_skips_completed_epochs(
+    tmp_path: Path,
+    normalizer: Normalizer,
+    encoder: Encoder,
+    data_folder: Path,
+    h5py_folder: Path,
+):
+    output_folder = tmp_path / "finetuned"
+    output_folder.mkdir(parents=True, exist_ok=True)
+    lfmc_eval = LFMCEval(
+        normalizer=normalizer,
+        data_folder=data_folder,
+        h5py_folder=h5py_folder,
+        h5pys_only=False,
+        validation_folds=frozenset([0]),
+        test_folds=frozenset([1]),
+    )
+
+    # Train for 2 epochs
+    config_2 = FinetuningConfig(max_epochs=2, weight_decay=0.001, learning_rate=0.001, batch_size=16, patience=100)
+    lfmc_eval.finetune(pretrained_model=encoder, output_folder=output_folder, finetuning_config=config_2)
+
+    checkpoint = torch.load(output_folder / "checkpoint.pth")
+    assert checkpoint["epoch"] == 2
+
+    # Simulate preemption: remove the final model so finetune doesn't early-return
+    (output_folder / "finetuned_model.pth").unlink()
+
+    # Resume and train to 5 epochs total
+    config_5 = FinetuningConfig(max_epochs=5, weight_decay=0.001, learning_rate=0.001, batch_size=16, patience=100)
+    lfmc_eval.finetune(pretrained_model=encoder, output_folder=output_folder, finetuning_config=config_5)
+
+    checkpoint = torch.load(output_folder / "checkpoint.pth")
+    assert checkpoint["epoch"] == 5
 
 
 @pytest.mark.parametrize(

@@ -12,6 +12,8 @@ from beaker import (
 )
 from beaker.services.experiment import ExperimentClient
 
+from lfmc.core.splits import SplitType
+
 from .beaker_args import BeakerArgs, add_common_beaker_args, get_beaker_args
 
 
@@ -25,10 +27,11 @@ def launch_experiment(
     num_timesteps: int,
     patch_size: int,
     load_weights: bool,
+    split_type: SplitType,
     validation_state_regions: frozenset[str] | None,
     test_state_regions: frozenset[str] | None,
     excluded_bands: frozenset[str],
-) -> None:
+) -> str:
     """Launch experiment for LFMC model finetuning on Beaker.
 
     Args:
@@ -41,14 +44,18 @@ def launch_experiment(
         num_timesteps: The number of timesteps
         patch_size: The patch size
         load_weights: Whether to load the weights
+        split_type: The split strategy (random or spatial)
         validation_state_regions: The state regions to use for validation
         test_state_regions: The state regions to use for testing
         excluded_bands: The bands to exclude
+
+    Returns:
+        The Beaker experiment ID
     """
     beaker = Beaker.from_env(default_workspace=beaker_args.workspace)
     weka_path = PurePath("/weka")
 
-    task_name = f"lfmc_finetune_{model_name}_{output_hw}hw_{num_timesteps}ts_{patch_size}ps"
+    task_name = f"lfmc_finetune_{model_name}_{output_hw}hw_{num_timesteps}ts_{patch_size}ps_{split_type}"
     if not load_weights:
         task_name += "_no_weights"
     with beaker.session():
@@ -63,6 +70,7 @@ def launch_experiment(
             f"--output-timesteps={num_timesteps}",
             f"--patch-size={patch_size}",
             "--load-weights" if load_weights else "--no-load-weights",
+            f"--split-type={split_type}",
         ]
         if validation_state_regions:
             arguments.append(f"--validation-state-regions={','.join(validation_state_regions)}")
@@ -106,6 +114,7 @@ def launch_experiment(
             result_dataset = experiment_client.results(experiment.id)
             if result_dataset is not None:
                 print(f"Result dataset: {result_dataset.id}")
+        return experiment.id
 
 
 if __name__ == "__main__":
@@ -160,6 +169,12 @@ if __name__ == "__main__":
         help="Whether to load the weights",
     )
     parser.add_argument(
+        "--split-type",
+        choices=[s.value for s in SplitType],
+        default=SplitType.RANDOM.value,
+        help="Split strategy: 'random' splits by sorting_id, 'spatial' splits by site_name",
+    )
+    parser.add_argument(
         "--validation-state-regions",
         nargs="*",
         help="The state regions to use for validation",
@@ -187,6 +202,7 @@ if __name__ == "__main__":
         num_timesteps=args.num_timesteps,
         patch_size=args.patch_size,
         load_weights=args.load_weights,
+        split_type=SplitType(args.split_type),
         validation_state_regions=frozenset(args.validation_state_regions) if args.validation_state_regions else None,
         test_state_regions=frozenset(args.test_state_regions) if args.test_state_regions else None,
         excluded_bands=frozenset(args.excluded_bands) if args.excluded_bands else frozenset(),
