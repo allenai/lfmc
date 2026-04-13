@@ -9,6 +9,7 @@ analyze-csv = "lfmc.main.analyze_csv:main"
 augment-labels = "lfmc.main.augment_labels:main"
 create-csv = "lfmc.main.create_csv:main"
 create-h5pys = "lfmc.main.create_h5pys:main"
+collect-results = "lfmc.main.collect_results:main"
 evaluate-model = "lfmc.main.evaluate_model:main"
 finetune-model = "lfmc.main.finetune_model:main"
 
